@@ -56,6 +56,38 @@ Section PCM_OWN.
 
 End PCM_OWN.
 
+Section SYNTACTIC.
+
+  Inductive Lan (g h : Type -> Type) (X : Type) : Type :=
+  | lan (Y : Type) (ϕ : g Y -> X) (y : h Y) : Lan g h X
+  .
+
+  Definition Lan_fmap (f : Type -> Type) `{FMap f} {A} : Lan id f A -> f A
+    := fun x => match x with lan _ _ _ _ ϕ y => ϕ <$> y end.
+
+  Inductive iSProp : Type :=
+  | SatAll (I : Lan id (gmap positive) iSProp) : iSProp
+  | SepConj (P Q : iSProp) : iSProp
+  | MagicWand (P Q : iSProp) : iSProp
+  | Exists (A : Type) (P : A -> iSProp) : iSProp
+  .
+
+  Context {Σ : GRA.t}.
+  Context `{@GRA.inG CoPset.t Σ}.
+  Context `{@GRA.inG Gset.t Σ}.
+
+  Fixpoint reflect (p : iSProp) : iProp :=
+    match p with
+    | SatAll (lan _ _ _ Y ϕ I') => [∗ map] i ↦ y ∈ I', reflect (ϕ y) ∗ OwnD {[i]} ∨ OwnE {[i]}
+    | SepConj P Q => reflect P ∗ reflect Q
+    | MagicWand P Q => reflect P -∗ reflect Q
+    | Exists A P => (∃ x : A, reflect (P x))
+    end.
+
+  Definition wsat : iSProp := Exists (Lan id (gmap positive) iSProp) SatAll.
+
+End SYNTACTIC.
+
 Section WORLD_SATISFACTION.
 
   Context `{Σ : GRA.t}.
