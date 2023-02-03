@@ -1,7 +1,7 @@
 Unset Universe Checking.
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM.
+From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM Optics.
 From Fairness Require LPCM.
 Require Import Program.
 
@@ -1382,40 +1382,6 @@ Section STATE.
     unfold stsim. iIntros "H" (? ? ? ? ?) "D".
     iApply isim_chooseR. iIntros (?).
     iPoseProof ("H" $! _ _ _ _ _ _ with "D") as "H". iFrame.
-  Qed.
-
-  Lemma default_I_SI_src ths im_src im_tgt st_src st_tgt :
-    default_I SI_src SI_tgt ths im_src im_tgt st_src st_tgt
-    -∗ (SI_src st_src ∗ ∀ st_src', SI_src st_src' -∗ default_I SI_src SI_tgt ths im_src im_tgt st_src' st_tgt).
-  Proof.
-    iIntros "[[[[[[A B] C] D] E] F] G]". iFrame. auto.
-  Qed.
-
-  Lemma default_I_SI_tgt ths im_src im_tgt st_src st_tgt :
-    default_I SI_src SI_tgt ths im_src im_tgt st_src st_tgt
-    -∗ (SI_tgt st_tgt ∗ ∀ st_tgt', SI_tgt st_tgt' -∗ default_I SI_src SI_tgt ths im_src im_tgt st_src st_tgt').
-  Proof.
-    iIntros "[[[[[[A B] C] D] E] F] G]". iFrame. auto.
-  Qed.
-
-  Lemma default_I_past_SI_src ths im_src im_tgt st_src st_tgt :
-    default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt
-    -∗ (SI_src st_src ∗ ∀ st_src', SI_src st_src' -∗ default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src' st_tgt).
-  Proof.
-    iIntros "[%im_tgt' [FAIR D]]".
-    iPoseProof (default_I_SI_src with "D") as "[S K]".
-    iFrame. iIntros (st_src') "S".
-    iExists im_tgt'. iSpecialize ("K" with "S"). iFrame.
-  Qed.
-
-  Lemma default_I_past_SI_tgt ths im_src im_tgt st_src st_tgt :
-    default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt
-    -∗ (SI_tgt st_tgt ∗ ∀ st_tgt', SI_tgt st_tgt' -∗ default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt').
-  Proof.
-    iIntros "[%im_tgt' [FAIR D]]".
-    iPoseProof (default_I_SI_tgt with "D") as "[S K]".
-    iFrame. iIntros (st_tgt') "S".
-    iExists im_tgt'. iSpecialize ("K" with "S"). iFrame.
   Qed.
 
   Lemma stsim_rmwL E X (rmw : state_src -> state_src * X) r g R_src R_tgt
