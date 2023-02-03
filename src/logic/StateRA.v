@@ -113,8 +113,6 @@ Section INVARIANT.
   Variable ident_src: ID.
   Variable ident_tgt: ID.
 
-  Definition stateSrcRA: URA.t := Auth.t (Excl.t (option state_src)).
-  Definition stateTgtRA: URA.t := Auth.t (Excl.t (option state_tgt)).
   Definition identSrcRA: URA.t := FairRA.srct ident_src.
   Definition identTgtRA: URA.t := FairRA.tgtt ident_tgt.
   Definition ThreadRA: URA.t := Auth.t (NatMapRA.t unit).
@@ -125,14 +123,15 @@ Section INVARIANT.
 
   Context `{MONORA: @GRA.inG monoRA Σ}.
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG stateSrcRA Σ}.
-  Context `{STATETGT: @GRA.inG stateTgtRA Σ}.
   Context `{IDENTSRC: @GRA.inG identSrcRA Σ}.
   Context `{IDENTTGT: @GRA.inG identTgtRA Σ}.
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
   Context `{ARROWRA: @GRA.inG ArrowRA Σ}.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
+
+  Variable SI_src : state_src -> iProp.
+  Variable SI_tgt : state_tgt -> iProp.
 
   Definition fairI: iProp :=
     (ObligationRA.edges_sat)
@@ -143,9 +142,9 @@ Section INVARIANT.
     fun ths im_src im_tgt st_src st_tgt =>
       (OwnM (Auth.black (Some ths: (NatMapRA.t unit)): ThreadRA))
         **
-        (OwnM (Auth.black (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA))
+        (SI_src st_src)
         **
-        (OwnM (Auth.black (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA))
+        (SI_tgt st_tgt)
         **
         (FairRA.sat_source im_src)
         **
@@ -178,54 +177,18 @@ Section INVARIANT.
     iPureIntro. auto.
   Qed.
 
-  Lemma default_I_update_st_src ths im_src im_tgt st_src0 st_tgt st_src' st_src1
-    :
-    (default_I ths im_src im_tgt st_src0 st_tgt)
-      -∗
-      (OwnM (Auth.white (Excl.just (Some st_src'): @Excl.t (option state_src)): stateSrcRA))
-      -∗
-      #=> (OwnM (Auth.white (Excl.just (Some st_src1): @Excl.t (option state_src))) ** default_I ths im_src im_tgt st_src1 st_tgt).
+  Lemma default_I_SI_src ths im_src im_tgt st_src st_tgt :
+    default_I ths im_src im_tgt st_src st_tgt
+    -∗ (SI_src st_src ∗ ∀ st_src', SI_src st_src' -∗ default_I ths im_src im_tgt st_src' st_tgt).
   Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
-    iPoseProof (black_white_update with "B OWN") as "> [B OWN]".
-    iModIntro. iFrame.
+    iIntros "[[[[[[A B] C] D] E] F] G]". iFrame. auto.
   Qed.
 
-  Lemma default_I_update_st_tgt ths im_src im_tgt st_src st_tgt0 st_tgt' st_tgt1
-    :
-    (default_I ths im_src im_tgt st_src st_tgt0)
-      -∗
-      (OwnM (Auth.white (Excl.just (Some st_tgt'): @Excl.t (option state_tgt)): stateTgtRA))
-      -∗
-      #=> (OwnM (Auth.white (Excl.just (Some st_tgt1): @Excl.t (option state_tgt))) ** default_I ths im_src im_tgt st_src st_tgt1).
+  Lemma default_I_SI_tgt ths im_src im_tgt st_src st_tgt :
+    default_I ths im_src im_tgt st_src st_tgt
+    -∗ (SI_tgt st_tgt ∗ ∀ st_tgt', SI_tgt st_tgt' -∗ default_I ths im_src im_tgt st_src st_tgt').
   Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
-    iPoseProof (black_white_update with "C OWN") as "> [C OWN]".
-    iModIntro. iFrame.
-  Qed.
-
-  Lemma default_I_get_st_src ths im_src im_tgt st_src st_tgt st
-    :
-    (default_I ths im_src im_tgt st_src st_tgt)
-      -∗
-      (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_src)): stateSrcRA))
-      -∗
-      ⌜st_src = st⌝.
-  Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
-    iPoseProof (black_white_equal with "B OWN") as "%". clarify.
-  Qed.
-
-  Lemma default_I_get_st_tgt ths im_src im_tgt st_src st_tgt st
-    :
-    (default_I ths im_src im_tgt st_src st_tgt)
-      -∗
-      (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_tgt)): stateTgtRA))
-      -∗
-      ⌜st_tgt = st⌝.
-  Proof.
-    unfold default_I. iIntros "[[[[[[A B] C] D] E] F] G] OWN".
-    iPoseProof (black_white_equal with "C OWN") as "%". clarify.
+    iIntros "[[[[[[A B] C] D] E] F] G]". iFrame. auto.
   Qed.
 
   Lemma default_I_thread_alloc ths0 im_src im_tgt0 st_src st_tgt
@@ -327,54 +290,24 @@ Section INVARIANT.
     iIntros "[[[[[[A B] C] D] E] F] G]". iModIntro. iFrame. auto.
   Qed.
 
-  Lemma default_I_past_update_st_src tid ths im_src im_tgt st_src0 st_tgt st_src' st_src1
-    :
-    (default_I_past tid ths im_src im_tgt st_src0 st_tgt)
-      -∗
-      (OwnM (Auth.white (Excl.just (Some st_src'): @Excl.t (option state_src)): stateSrcRA))
-      -∗
-      #=> (OwnM (Auth.white (Excl.just (Some st_src1): @Excl.t (option state_src))) ** default_I_past tid ths im_src im_tgt st_src1 st_tgt).
+  Lemma default_I_past_SI_src tid ths im_src im_tgt st_src st_tgt :
+    default_I_past tid ths im_src im_tgt st_src st_tgt
+    -∗ (SI_src st_src ∗ ∀ st_src', SI_src st_src' -∗ default_I_past tid ths im_src im_tgt st_src' st_tgt).
   Proof.
-    iIntros "[% [% D]] H".
-    iPoseProof (default_I_update_st_src with "D H") as "> [H D]".
-    iModIntro. iSplitL "H"; auto. unfold default_I_past. eauto.
+    iIntros "[%im_tgt' [FAIR D]]".
+    iPoseProof (default_I_SI_src with "D") as "[S K]".
+    iFrame. iIntros (st_src') "S".
+    iExists im_tgt'. iSpecialize ("K" with "S"). iFrame.
   Qed.
 
-  Lemma default_I_past_update_st_tgt tid ths im_src im_tgt st_src st_tgt0 st_tgt' st_tgt1
-    :
-    (default_I_past tid ths im_src im_tgt st_src st_tgt0)
-      -∗
-      (OwnM (Auth.white (Excl.just (Some st_tgt'): @Excl.t (option state_tgt)): stateTgtRA))
-      -∗
-      #=> (OwnM (Auth.white (Excl.just (Some st_tgt1): @Excl.t (option state_tgt))) ** default_I_past tid ths im_src im_tgt st_src st_tgt1).
+  Lemma default_I_past_SI_tgt tid ths im_src im_tgt st_src st_tgt :
+    default_I_past tid ths im_src im_tgt st_src st_tgt
+    -∗ (SI_tgt st_tgt ∗ ∀ st_tgt', SI_tgt st_tgt' -∗ default_I_past tid ths im_src im_tgt st_src st_tgt').
   Proof.
-    iIntros "[% [% D]] H".
-    iPoseProof (default_I_update_st_tgt with "D H") as "> [H D]".
-    iModIntro. iSplitL "H"; auto. unfold default_I_past. eauto.
-  Qed.
-
-  Lemma default_I_past_get_st_src tid ths im_src im_tgt st_src st_tgt st
-    :
-    (default_I_past tid ths im_src im_tgt st_src st_tgt)
-      -∗
-      (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_src)): stateSrcRA))
-      -∗
-      ⌜st_src = st⌝.
-  Proof.
-    iIntros "[% [% D]] H".
-    iApply (default_I_get_st_src with "D H").
-  Qed.
-
-  Lemma default_I_past_get_st_tgt tid ths im_src im_tgt st_src st_tgt st
-    :
-    (default_I_past tid ths im_src im_tgt st_src st_tgt)
-      -∗
-      (OwnM (Auth.white (Excl.just (Some st): @Excl.t (option state_tgt)): stateTgtRA))
-      -∗
-      ⌜st_tgt = st⌝.
-  Proof.
-    iIntros "[% [% D]] H".
-    iApply (default_I_get_st_tgt with "D H").
+    iIntros "[%im_tgt' [FAIR D]]".
+    iPoseProof (default_I_SI_tgt with "D") as "[S K]".
+    iFrame. iIntros (st_tgt') "S".
+    iExists im_tgt'. iSpecialize ("K" with "S"). iFrame.
   Qed.
 
   Lemma default_I_past_update_ident_thread ths im_src im_tgt st_src st_tgt
