@@ -76,8 +76,6 @@ Section SIM.
 
   Context `{MONORA: @GRA.inG monoRA Σ}.
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA (bool * NatMap.t unit)) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA (unit * SCMem.t)) Σ}.
   Context `{IDENTSRC: @GRA.inG (identSrcRA (id_sum thread_id void)) Σ}.
   Context `{IDENTTGT: @GRA.inG (identTgtRA (void + SCMem.val)%type) Σ}.
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.

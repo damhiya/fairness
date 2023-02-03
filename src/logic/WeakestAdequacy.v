@@ -16,8 +16,6 @@ Module WSim.
     Context `{Σ: GRA.t}.
     Context `{MONORA: @GRA.inG monoRA Σ}.
     Context `{THDRA: @GRA.inG ThreadRA Σ}.
-    Context `{STATESRC: @GRA.inG (stateSrcRA md_src.(Mod.state)) Σ}.
-    Context `{STATETGT: @GRA.inG (stateTgtRA md_tgt.(Mod.state)) Σ}.
     Context `{IDENTSRC: @GRA.inG (identSrcRA md_src.(Mod.ident)) Σ}.
     Context `{IDENTTGT: @GRA.inG (identTgtRA md_tgt.(Mod.ident)) Σ}.
     Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
@@ -25,7 +23,9 @@ Module WSim.
     Context `{EDGERA: @GRA.inG EdgeRA Σ}.
     Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
     Variable init_res: Σ.
-    Hypothesis RESWF: URA.wf (init_res ⋅ (@default_initial_res _ md_src.(Mod.state) md_tgt.(Mod.state) md_src.(Mod.ident) md_tgt.(Mod.ident) _ _ _ _ _ _ _)).
+    Variable SI_src : md_src.(Mod.state) -> iProp.
+    Variable SI_tgt : md_tgt.(Mod.state) -> iProp.
+    Hypothesis RESWF: URA.wf (init_res ⋅ (@default_initial_res _ md_src.(Mod.ident) md_tgt.(Mod.ident) _ _ _ _ _)).
 
     Definition initial_prop (ths: TIdSet.t) o: iProp :=
       ((FairRA.whites (fun _ => True: Prop) o)
@@ -36,9 +36,9 @@ Module WSim.
          **
          (natmap_prop_sum ths (fun tid _ => own_thread tid))
          **
-         (St_src md_src.(Mod.st_init))
+         (SI_src md_src.(Mod.st_init))
          **
-         (St_tgt md_tgt.(Mod.st_init)))%I
+         (SI_tgt md_tgt.(Mod.st_init)))%I
     .
 
 
@@ -62,7 +62,7 @@ Module WSim.
                           fun_pairs
                           (fun tid '(th_src, th_tgt) =>
                              stsim
-                               I_whole tid (topset I_whole)
+                               I_whole SI_src SI_tgt tid (topset I_whole)
                                ibot5 ibot5
                                (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
                                th_src th_tgt)))))
@@ -103,7 +103,7 @@ Module WSim.
                 (ObligationRA.duty (inl tid) [])
                 -∗
                 (stsim
-                   I_ctx tid (topset I_ctx)
+                   I_ctx SI_src SI_tgt tid (topset I_ctx)
                    ibot5 ibot5
                    (fun r_src r_tgt => own_thread tid ** ObligationRA.duty (inl tid) [] ** ⌜r_src = r_tgt⌝)
                    (fn2th md_src fn arg) (fn2th md_tgt fn arg))

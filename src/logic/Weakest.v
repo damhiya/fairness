@@ -1,7 +1,7 @@
 Unset Universe Checking.
 From sflib Require Import sflib.
 From Paco Require Import paco.
-From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM.
+From Fairness Require Import ITreeLib IProp IPM ModSim ModSimNat PCM Optics.
 From Fairness Require LPCM.
 Require Import Program.
 
@@ -657,8 +657,6 @@ Section STATE.
 
   Context `{MONORA: @GRA.inG monoRA Σ}.
   Context `{THDRA: @GRA.inG ThreadRA Σ}.
-  Context `{STATESRC: @GRA.inG (stateSrcRA state_src) Σ}.
-  Context `{STATETGT: @GRA.inG (stateTgtRA state_tgt) Σ}.
   Context `{IDENTSRC: @GRA.inG (identSrcRA ident_src) Σ}.
   Context `{IDENTTGT: @GRA.inG (identTgtRA ident_tgt) Σ}.
   Context `{OBLGRA: @GRA.inG ObligationRA.t Σ}.
@@ -666,19 +664,12 @@ Section STATE.
   Context `{EDGERA: @GRA.inG EdgeRA Σ}.
   Context `{ONESHOTRA: @GRA.inG (@FiniteMap.t (OneShot.t unit)) Σ}.
 
-  Definition St_src (st_src: state_src): iProp :=
-    OwnM (Auth.white (Excl.just (Some st_src): @Excl.t (option state_src)): stateSrcRA state_src).
-
-  Definition St_tgt (st_tgt: state_tgt): iProp :=
-    OwnM (Auth.white (Excl.just (Some st_tgt): @Excl.t (option state_tgt)): stateTgtRA state_tgt).
+  Variable SI_src : state_src -> iProp.
+  Variable SI_tgt : state_tgt -> iProp.
 
   Definition default_initial_res
     : Σ :=
     (@GRA.embed _ _ THDRA (Auth.black (Some (NatMap.empty unit): NatMapRA.t unit)))
-      ⋅
-      (@GRA.embed _ _ STATESRC (Auth.black (Excl.just None: @Excl.t (option state_src)) ⋅ (Auth.white (Excl.just None: @Excl.t (option state_src)): stateSrcRA state_src)))
-      ⋅
-      (@GRA.embed _ _ STATETGT (Auth.black (Excl.just None: @Excl.t (option state_tgt)) ⋅ (Auth.white (Excl.just None: @Excl.t (option state_tgt)): stateTgtRA state_tgt)))
       ⋅
       (@GRA.embed _ _ IDENTSRC (@FairRA.source_init_resource ident_src))
       ⋅
@@ -804,6 +795,7 @@ Section STATE.
     iFrame. iApply (natmap_prop_sum_add with "H1 H0").
   Qed.
 
+  (*
   Lemma default_initial_res_init
     :
     (Own (default_initial_res))
@@ -855,10 +847,11 @@ Section STATE.
     }
     { iApply natmap_prop_sum_impl; [|eauto]. i. ss. iApply black_to_duty. }
   Qed.
+   *)
 
   Let I: shared_rel :=
         fun ths im_src im_tgt st_src st_tgt =>
-          default_I ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset.
+          default_I SI_src SI_tgt ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset.
 
   Let rel := (forall R_src R_tgt (Q: R_src -> R_tgt -> iProp), itree srcE R_src -> itree tgtE R_tgt -> iProp).
 
@@ -868,28 +861,28 @@ Section STATE.
       (r: forall R_src R_tgt (Q: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel): rel :=
         fun R_src R_tgt Q itr_src itr_tgt =>
           (∀ ths im_src im_tgt st_src st_tgt,
-              (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset)
+              (default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset)
                 -*
-                (@r R_src R_tgt (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt) itr_src itr_tgt ths im_src im_tgt st_src st_tgt))%I.
+                (@r R_src R_tgt (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt) itr_src itr_tgt ths im_src im_tgt st_src st_tgt))%I.
 
   Let lift_rel (rr: rel):
     forall R_src R_tgt (QQ: R_src -> R_tgt -> shared_rel), itree srcE R_src -> itree tgtE R_tgt -> shared_rel :=
         fun R_src R_tgt QQ itr_src itr_tgt ths im_src im_tgt st_src st_tgt =>
           (∃ (Q: R_src -> R_tgt -> iProp)
              (EQ: QQ = (fun r_src r_tgt ths im_src im_tgt st_src st_tgt =>
-                          (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)),
-              rr R_src R_tgt Q itr_src itr_tgt ** (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset))%I.
+                          (default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)),
+              rr R_src R_tgt Q itr_src itr_tgt ** (default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset))%I.
 
   Let unlift_rel_base r
     :
     forall R_src R_tgt Q itr_src itr_tgt ths im_src im_tgt st_src st_tgt,
       (r R_src R_tgt Q itr_src itr_tgt)
         -∗
-        (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset)
+        (default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset)
         -∗
         (lift_rel
            r
-           (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)
+           (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)
            itr_src itr_tgt ths im_src im_tgt st_src st_tgt).
   Proof.
     unfold lift_rel, unlift_rel. i.
@@ -946,14 +939,14 @@ Section STATE.
     fun r g
         R_src R_tgt Q itr_src itr_tgt =>
       (∀ ths im_src im_tgt st_src st_tgt,
-          (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) E)
+          (default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) E)
             -*
             (isim
                tid
                I
                (lift_rel r)
                (lift_rel g)
-               (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)
+               (fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q r_src r_tgt)
                itr_src itr_tgt
                ths im_src im_tgt st_src st_tgt))%I
   .
@@ -1058,8 +1051,8 @@ Section STATE.
   Proof.
     cut (forall (m: mytype A),
             bi_entails
-              ((fun m => P m.(comp_a) ** (default_I_past tid m.(comp_ths) m.(comp_im_src) m.(comp_im_tgt) m.(comp_st_src) m.(comp_st_tgt) ** mset_all (nth_default True%I Invs) topset)) m)
-              (isim tid I (lift_rel r) (lift_rel g0) ((fun m => fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q m.(comp_a) r_src r_tgt) m)
+              ((fun m => P m.(comp_a) ** (default_I_past SI_src SI_tgt tid m.(comp_ths) m.(comp_im_src) m.(comp_im_tgt) m.(comp_st_src) m.(comp_st_tgt) ** mset_all (nth_default True%I Invs) topset)) m)
+              (isim tid I (lift_rel r) (lift_rel g0) ((fun m => fun r_src r_tgt ths im_src im_tgt st_src st_tgt => (default_I_past SI_src SI_tgt tid ths im_src im_tgt st_src st_tgt ** mset_all (nth_default True%I Invs) topset) ** Q m.(comp_a) r_src r_tgt) m)
                     ((fun m => itr_src m.(comp_a)) m) ((fun m => itr_tgt m.(comp_a)) m) (comp_ths m) (comp_im_src m) (comp_im_tgt m) (comp_st_src m) (comp_st_tgt m))).
     { ss. i. rewrite <- stsim_discard; [|eassumption].
       unfold stsim. iIntros "H" (? ? ? ? ?) "D".
@@ -1391,70 +1384,68 @@ Section STATE.
     iPoseProof ("H" $! _ _ _ _ _ _ with "D") as "H". iFrame.
   Qed.
 
-  Lemma stsim_rmwL E X rmw r g R_src R_tgt
+  Lemma stsim_rmwL E X (rmw : state_src -> state_src * X) r g R_src R_tgt
     (Q : R_src -> R_tgt -> iProp)
-    ktr_src itr_tgt st_src
+    ktr_src itr_tgt
     :
-    (St_src st_src)
-    -∗ (St_src (fst (rmw st_src)) -∗ stsim E r g Q (ktr_src (snd (rmw st_src) : X)) itr_tgt)
+    (∀ st_src, SI_src st_src -∗ #=> (SI_src (fst (rmw st_src)) ∗ stsim E r g Q (ktr_src (snd (rmw st_src))) itr_tgt))
     -∗ stsim E r g Q (trigger (Rmw rmw) >>= ktr_src) itr_tgt.
   Proof.
-    unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "[D C]". iApply isim_rmwL.
-    iAssert (⌜st_src0 = st_src⌝)%I as "%".
-    { iApply (default_I_past_get_st_src with "D H0"); eauto. }
-    subst.
-    iPoseProof (default_I_past_update_st_src with "D H0") as "> [D H0]".
-    iApply ("H1" with "D [H0 C]"). iFrame.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]". iApply isim_rmwL.
+    iPoseProof (default_I_past_SI_src with "D") as "[S K]".
+    iPoseProof ("H" with "S") as ">[S H]".
+    iPoseProof ("K" with "S") as "D".
+    iPoseProof ("H" with "[D C]") as "H"; iFrame.
   Qed.
 
-  Lemma stsim_rmwR E X rmw r g R_src R_tgt
+  Lemma stsim_rmwR E X (rmw : state_tgt -> state_tgt * X) r g R_src R_tgt
     (Q : R_src -> R_tgt -> iProp)
-    itr_src ktr_tgt st_tgt
+    itr_src ktr_tgt
     :
-    (St_tgt st_tgt)
-    -∗ (St_tgt (fst (rmw st_tgt)) -∗ stsim E r g Q itr_src (ktr_tgt (snd (rmw st_tgt) : X)))
+    (∀ st_tgt, SI_tgt st_tgt -∗ #=> (SI_tgt (fst (rmw st_tgt)) ∗ stsim E r g Q itr_src (ktr_tgt (snd (rmw st_tgt)))))
     -∗ stsim E r g Q itr_src (trigger (Rmw rmw) >>= ktr_tgt).
   Proof.
-    unfold stsim. iIntros "H0 H1" (? ? ? ? ?) "[D C]". iApply isim_rmwR.
-    iAssert (⌜st_tgt0 = st_tgt⌝)%I as "%".
-    { iApply (default_I_past_get_st_tgt with "D H0"); eauto. }
-    subst.
-    iPoseProof (default_I_past_update_st_tgt with "D H0") as "> [D H0]".
-    iApply ("H1" with "D [H0 C]"). iFrame.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]". iApply isim_rmwR.
+    iPoseProof (default_I_past_SI_tgt with "D") as "[S K]".
+    iPoseProof ("H" with "S") as ">[S H]".
+    iPoseProof ("K" with "S") as "D".
+    iPoseProof ("H" with "[D C]") as "H"; iFrame.
   Qed.
 
-  Lemma stsim_getL X (p : state_src -> X) E st r g R_src R_tgt
+  Lemma stsim_getL X (p : state_src -> X) (P : X -> iProp) E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         ktr_src itr_tgt
     :
-    ((St_src st) ∧
-       (stsim E r g Q (ktr_src (p st)) itr_tgt))
+    (∀ st_src, SI_src st_src -∗ □ P (p st_src)) ∧
+      (∀ x, <pers> P x -∗ stsim E r g Q (ktr_src x) itr_tgt)
       -∗
-      (stsim E r g Q (trigger (Get p) >>= ktr_src) itr_tgt)
-  .
+         (stsim E r g Q (trigger (Get p) >>= ktr_src) itr_tgt).
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]".
-    rewrite get_rmw. iApply isim_rmwL.
-    iAssert (⌜st_src = st⌝)%I as "%".
-    { iDestruct "H" as "[H _]". iApply (default_I_past_get_st_src with "D"); eauto. }
-    subst. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]". rewrite get_rmw. iApply isim_rmwL.
+    iAssert (<pers> P (p st_src))%I as "#X".
+    { iDestruct "H" as "[H _]".
+      iPoseProof (default_I_past_SI_src with "D") as "[S K]".
+      iApply ("H" with "S").
+    }
+    iDestruct "H" as "[_ H]". iApply "H"; ss. iFrame.
   Qed.
 
-  Lemma stsim_getR X (p : state_tgt -> X) E st r g R_src R_tgt
+  Lemma stsim_getR X (p : state_tgt -> X) (P : X -> iProp) E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
         itr_src ktr_tgt
     :
-    ((St_tgt st) ∧
-       (stsim E r g Q itr_src (ktr_tgt (p st))))
+    (∀ st_tgt, SI_tgt st_tgt -∗ □ P (p st_tgt)) ∧
+      (∀ x, <pers> P x -∗ stsim E r g Q itr_src (ktr_tgt x))
       -∗
-      (stsim E r g Q itr_src (trigger (Get p) >>= ktr_tgt))
-  .
+         (stsim E r g Q itr_src (trigger (Get p) >>= ktr_tgt)).
   Proof.
-    unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]".
-    rewrite get_rmw. iApply isim_rmwR.
-    iAssert (⌜st_tgt = st⌝)%I as "%".
-    { iDestruct "H" as "[H _]". iApply (default_I_past_get_st_tgt with "D"); eauto. }
-    subst. iDestruct "H" as "[_ H]". iApply ("H" with "[D C]"). iFrame.
+    unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]". rewrite get_rmw. iApply isim_rmwR.
+    iAssert (<pers> P (p st_tgt))%I as "#X".
+    { iDestruct "H" as "[H _]".
+      iPoseProof (default_I_past_SI_tgt with "D") as "[S K]".
+      iApply ("H" with "S").
+    }
+    iDestruct "H" as "[_ H]". iApply "H"; ss. iFrame.
   Qed.
 
   Lemma stsim_tidL E r g R_src R_tgt
@@ -1678,6 +1669,11 @@ Section STATE.
   Qed.
 
   Definition ibot5 { T0 T1 T2 T3 T4} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3): iProp := False.
+
+  Class ViewInterp {S V} (l : Lens.t S V) (SI : S -> iProp) (VI : V -> iProp) := {
+      view_interp : forall s, (SI s) ⊢ (VI (Lens.view l s) ∗ ∀ x, VI x -∗ SI (Lens.set l x s))
+    }.
+
 End STATE.
 
 From Fairness Require Export Red IRed.
@@ -1721,8 +1717,6 @@ Section USERPCM.
     : RAs :=
     [existT monoRA URA.unit;
      existT ThreadRA (Auth.black (Some (NatMap.empty unit): NatMapRA.t unit));
-     existT (stateSrcRA ST_src) (Auth.black (Excl.just None: @Excl.t (option ST_src)));
-     existT (stateTgtRA ST_tgt) (Auth.black (Excl.just None: @Excl.t (option ST_tgt)));
      existT (identSrcRA ID_src) (@FairRA.source_init_resource ID_src);
      existT (identTgtRA ID_tgt) ((fun _ => Fuel.black 0 1%Qp): identTgtRA ID_tgt);
      existT ObligationRA.t URA.unit;
