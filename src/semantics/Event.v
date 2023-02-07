@@ -180,6 +180,17 @@ End PROGRAM_EVENT.
 
 Section OPTICS_PROPERTIES.
 
+  Lemma map_lens_Rmw S V (l : Lens.t S V) X (rmw : V -> V * X) :
+    map_lens l (Rmw rmw) = Rmw (lens_rmw l rmw).
+  Proof. ss. Qed.
+
+  Lemma map_lens_Get S V (l : Lens.t S V) X (p : V -> X) :
+    map_lens l (Get p) = Get (p ∘ Lens.view l).
+  Proof.
+    rewrite ! get_rmw; ss. f_equal. extensionalities s.
+    unfold lens_rmw; ss. rewrite Lens.set_view. ss.
+  Qed.
+
   Lemma lens_rmw_compose A B C (l1 : Lens.t A B) (l2 : Lens.t B C) X (rmw : C -> C * X) :
     lens_rmw (l1 ⋅ l2)%lens rmw = lens_rmw l1 (lens_rmw l2 rmw).
   Proof. ss. Qed.
