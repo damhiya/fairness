@@ -6,12 +6,15 @@ From Fairness Require Export FairBeh Mod Linking WMM FairLock Concurrency LockCl
 Section ALL.
   Definition client_spec := ClientSpec.mod.
 
+  (*
   Definition client_abstract_lock :=
     OMod.close ClientImpl.omod (ModAdd WMem.mod FairLockW.mod).
+   *)
 
   Definition client_ticket_lock :=
     OMod.close ClientImpl.omod (ModAdd WMem.mod TicketLock.mod ).
 
+  (*
   Theorem client_all
     :
     Adequacy.improves
@@ -39,4 +42,6 @@ Section ALL.
     { eapply usersim_adequacy. eapply client_correct. }
     Unshelve. all: exact true.
   Qed.
+   *)
+
 End ALL.

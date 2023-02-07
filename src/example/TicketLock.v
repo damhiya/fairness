@@ -1,8 +1,7 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-Unset Universe Checking.
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind Axioms Linking SCM Red IRed Wrapper WeakestAdequacy.
+From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind Axioms Linking SCM Red IRed WeakestAdequacy.
 From Ordinal Require Export ClassicalHessenberg.
 
 

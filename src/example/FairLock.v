@@ -1,15 +1,14 @@
 From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
-Unset Universe Checking.
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind Axioms Linking SCM Red IRed Wrapper.
+From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind Axioms Linking SCM Red IRed.
 From PromisingSEQ Require Import TView.
 From Ordinal Require Export ClassicalHessenberg.
 
 
 Set Implicit Arguments.
 
-
+(*
 Module FairLock.
   Definition lock_fun: WMod.function bool unit void :=
     WMod.mk_fun
@@ -39,9 +38,11 @@ Module FairLock.
   Definition mod: Mod.t :=
     WMod.interp_mod wmod.
 End FairLock.
+ *)
 
 From Fairness Require Export WMM.
 
+(*
 Module FairLockW.
   Definition lock_fun: WMod.function (option TView.t) unit void :=
     WMod.mk_fun
@@ -72,3 +73,4 @@ Module FairLockW.
   Definition mod: Mod.t :=
     WMod.interp_mod wmod.
 End FairLockW.
+*)

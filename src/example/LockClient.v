@@ -2,7 +2,7 @@ From sflib Require Import sflib.
 From Paco Require Import paco.
 Require Import Coq.Classes.RelationClasses Lia Program.
 Unset Universe Checking.
-From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind Axioms Linking WMM Red IRed Wrapper WeakestAdequacy FairLock Concurrency.
+From Fairness Require Export ITreeLib WFLib FairBeh NatStructs Mod pind Axioms Linking WMM Red IRed WeakestAdequacy FairLock Concurrency.
 From PromisingLib Require Import Loc Event.
 From PromisingSEQ Require Import TView.
 From Ordinal Require Export ClassicalHessenberg.
@@ -50,11 +50,13 @@ Module ClientImpl.
                      ("thread2", Mod.wrap_fun thread2)])
   .
 
+  (*
   Definition mod: Mod.t :=
     OMod.close
       (omod)
       (ModAdd WMem.mod FairLockW.mod)
   .
+   *)
 End ClientImpl.
 
 
@@ -86,7 +88,9 @@ From Fairness Require Import ModSim.
 Section SIM.
   Let config := [("thread1", tt↑); ("thread2", tt↑)].
 
+  (*
   Lemma client_correct:
     UserSim.sim ClientSpec.mod ClientImpl.mod (prog2ths ClientSpec.mod config) (prog2ths ClientImpl.mod config).
   Admitted.
+   *)
 End SIM.
