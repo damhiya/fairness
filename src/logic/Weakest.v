@@ -8,6 +8,19 @@ Require Import Program.
 Set Implicit Arguments.
 
 
+Section VIEW_INTERP.
+
+  Context {Σ : GRA.t}.
+
+  Context {S V : Type}.
+  Context (l : Lens.t S V).
+
+  Class ViewInterp (SI : S -> iProp) (VI : V -> iProp) : Prop := {
+      view_interp : forall s, SI s ⊢ VI (Lens.view l s) ∗ ∀ x, VI x -∗ SI (Lens.set l x s)
+    }.
+
+End VIEW_INTERP.
+
 Section SIM.
   Context `{Σ: GRA.t}.
 
@@ -1417,12 +1430,12 @@ Section STATE.
         ktr_src itr_tgt
     :
     (∀ st_src, SI_src st_src -∗ □ P (p st_src)) ∧
-      (∀ x, <pers> P x -∗ stsim E r g Q (ktr_src x) itr_tgt)
+      (∀ x, □ P x -∗ stsim E r g Q (ktr_src x) itr_tgt)
       -∗
          (stsim E r g Q (trigger (Get p) >>= ktr_src) itr_tgt).
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]". rewrite get_rmw. iApply isim_rmwL.
-    iAssert (<pers> P (p st_src))%I as "#X".
+    iAssert (□ P (p st_src))%I as "#X".
     { iDestruct "H" as "[H _]".
       iPoseProof (default_I_past_SI_src with "D") as "[S K]".
       iApply ("H" with "S").
@@ -1435,18 +1448,51 @@ Section STATE.
         itr_src ktr_tgt
     :
     (∀ st_tgt, SI_tgt st_tgt -∗ □ P (p st_tgt)) ∧
-      (∀ x, <pers> P x -∗ stsim E r g Q itr_src (ktr_tgt x))
+      (∀ x, □ P x -∗ stsim E r g Q itr_src (ktr_tgt x))
       -∗
          (stsim E r g Q itr_src (trigger (Get p) >>= ktr_tgt)).
   Proof.
     unfold stsim. iIntros "H" (? ? ? ? ?) "[D C]". rewrite get_rmw. iApply isim_rmwR.
-    iAssert (<pers> P (p st_tgt))%I as "#X".
+    iAssert (□ P (p st_tgt))%I as "#X".
     { iDestruct "H" as "[H _]".
       iPoseProof (default_I_past_SI_tgt with "D") as "[S K]".
       iApply ("H" with "S").
     }
     iDestruct "H" as "[_ H]". iApply "H"; ss. iFrame.
   Qed.
+
+  Lemma stsim_view_rmwR
+    V (l : Lens.t state_tgt V) VI `{VI_H : @ViewInterp Σ _ _ l SI_tgt VI}
+    X (rmw : V -> V * X)
+    E r g R_src R_tgt (Q : R_src -> R_tgt -> iProp) itr_src ktr_tgt
+    :
+    (∀ st, VI st -∗ #=> VI (fst (rmw st)) ∗ stsim E r g Q itr_src (ktr_tgt (snd (rmw st))))
+    -∗ stsim E r g Q itr_src (trigger (map_lens l (Rmw rmw)) >>= ktr_tgt).
+  Proof.
+    iIntros "H". rewrite map_lens_Rmw.
+    iApply stsim_rmwR. iIntros (?) "S".
+    iPoseProof (view_interp with "S") as "[V K]".
+    iMod ("H" with "V") as "[V SIM]".
+    iPoseProof ("K" with "V") as "S".
+    iModIntro. iFrame.
+  Qed.
+
+  Lemma stsim_view_getR
+    V (l : Lens.t state_tgt V) VI `{VI_H : @ViewInterp Σ _ _ l SI_tgt VI}
+    X (p : V -> X) (P : X -> iProp)
+    E r g R_src R_tgt (Q : R_src -> R_tgt -> iProp) itr_src ktr_tgt
+    :
+    (∀ st, VI st -∗ □ P (p st)) ∧
+      (∀ x, □ P x -∗ stsim E r g Q itr_src (ktr_tgt x))
+      -∗
+         (stsim E r g Q itr_src (trigger (map_lens l (Get p)) >>= ktr_tgt)).
+  Proof.
+    iIntros "H". rewrite map_lens_Get.
+    iApply stsim_getR. iSplit.
+    - iDestruct "H" as "[H _]". iIntros (?) "S". iApply "H".
+      iPoseProof (view_interp with "S") as "[V K]". iFrame.
+    - iDestruct "H" as "[_ H]". iFrame.
+  Qed.      
 
   Lemma stsim_tidL E r g R_src R_tgt
         (Q: R_src -> R_tgt -> iProp)
@@ -1669,10 +1715,6 @@ Section STATE.
   Qed.
 
   Definition ibot5 { T0 T1 T2 T3 T4} (x0: T0) (x1: T1 x0) (x2: T2 x0 x1) (x3: T3 x0 x1 x2) (x4: T4 x0 x1 x2 x3): iProp := False.
-
-  Class ViewInterp {S V} (l : Lens.t S V) (SI : S -> iProp) (VI : V -> iProp) := {
-      view_interp : forall s, (SI s) ⊢ (VI (Lens.view l s) ∗ ∀ x, VI x -∗ SI (Lens.set l x s))
-    }.
 
 End STATE.
 
