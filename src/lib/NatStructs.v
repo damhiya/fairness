@@ -1,6 +1,6 @@
 From sflib Require Import sflib.
 
-From Fairness Require Import Axioms.
+From Fairness Require Import Axioms FMapList FMapFacts OrderedTypeEx.
 
 From Coq Require Import
   Logic.Eqdep_dec
@@ -10,8 +10,6 @@ From Coq Require Import
   Lists.List
   Lia.
 
-Require Import Coq.Structures.OrderedTypeEx.
-Require Import Coq.FSets.FMaps.
 Module NatMap := FMapList.Make(Nat_as_OT).
 Module NatMapP := WProperties_fun Nat_as_OT NatMap.
 
