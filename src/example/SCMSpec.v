@@ -1,4 +1,3 @@
-Unset Universe Checking.
 From sflib Require Import sflib.
 From Fairness Require Import PCM IProp IPM SCM Weakest.
 
